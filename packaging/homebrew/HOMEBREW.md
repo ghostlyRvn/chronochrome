@@ -5,20 +5,29 @@ about as simple as a Python formula gets — no `resource` blocks to vendor. The
 work is release plumbing, not the formula.
 
 The canonical formula lives at
-[`packaging/homebrew/chronochrome.rb`](./chronochrome.rb) in this repo; the tap
-repo holds a copy. Keep them in sync when you cut a release.
+[`packaging/homebrew/chronochrome.rb`](./chronochrome.rb) in this repo. It seeds
+the tap once; after that, CI keeps the tap's copy up to date automatically —
+see [`../../RELEASING.md`](../../RELEASING.md) for the day-to-day release flow.
 
 ---
 
-## One-time setup: create the tap
+## One-time setup
+
+Do these three things once. After that, releasing is a single command
+(`scripts/release.sh patch`) and the tap updates itself.
+
+### 1. Create the tap
 
 A "tap" is just a GitHub repo whose name starts with `homebrew-`.
 
 1. Create a public repo named **`ghostlyrvn/homebrew-chronochrome`**.
-2. Add the formula at `Formula/chronochrome.rb` (copy from this repo):
+2. Seed it with the formula at `Formula/chronochrome.rb` (copy from this repo)
+   and fill in the real `sha256` for the current tag:
    ```sh
    mkdir -p Formula
    cp /path/to/chronochrome/packaging/homebrew/chronochrome.rb Formula/chronochrome.rb
+   curl -sL https://github.com/ghostlyrvn/chronochrome/archive/refs/tags/v0.1.0.tar.gz | shasum -a 256
+   # paste that sha256 into Formula/chronochrome.rb, then:
    git add Formula/chronochrome.rb && git commit -m "chronochrome 0.1.0" && git push
    ```
 
@@ -30,24 +39,22 @@ brew install ghostlyrvn/chronochrome/chronochrome
 brew tap ghostlyrvn/chronochrome && brew install chronochrome
 ```
 
----
+### 2. Create a tap-write token
 
-## Each release
+The release workflow needs to push the updated formula to the *other* repo
+(the tap), which the default `GITHUB_TOKEN` can't do.
 
-1. **Bump the version** in `pyproject.toml` (and `src/chronochrome/__init__.py`).
-2. **Tag and push** — this triggers `.github/workflows/release.yml`:
-   ```sh
-   git tag v0.1.0 && git push origin v0.1.0
-   ```
-3. The workflow builds the sdist/wheel, attaches them to a GitHub Release, and
-   prints the **`url`** and **`sha256`** for the formula in its job summary.
-   (Or compute it yourself:)
-   ```sh
-   curl -sL https://github.com/ghostlyrvn/chronochrome/archive/refs/tags/v0.1.0.tar.gz | shasum -a 256
-   ```
-4. **Update the formula** in both this repo's copy and the tap's
-   `Formula/chronochrome.rb`: set `url` to the new tag and paste the new
-   `sha256`. Push the tap.
+1. Create a **fine-grained PAT** scoped to `ghostlyrvn/homebrew-chronochrome`
+   with **Contents: Read and write**.
+2. In **this** repo's settings → Secrets and variables → Actions, add it as
+   **`TAP_GITHUB_TOKEN`**.
+
+Until this secret exists the `bump-homebrew-tap` job simply no-ops (the GitHub
+Release still publishes), so nothing breaks before you set it up.
+
+### 3. That's it
+
+From now on, `scripts/release.sh <patch|minor|major>` is the whole release.
 
 ---
 

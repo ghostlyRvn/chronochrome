@@ -107,6 +107,13 @@ pytest
 The Zed adapter test asserts that patching a commented fixture preserves every
 comment and only touches the theme line.
 
+## Releasing
+
+Cutting a release is a single command — `scripts/release.sh patch` (or
+`minor`/`major`). It bumps the version, tests, tags, and pushes; CI then builds
+the GitHub Release and updates the Homebrew tap automatically. See
+[`RELEASING.md`](RELEASING.md).
+
 ## Non-goals
 
 - Not a WASM/native editor extension; not in any editor's extension registry

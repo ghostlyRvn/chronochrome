@@ -29,7 +29,9 @@ class Chronochrome < Formula
   end
 
   test do
-    assert_match "chronochrome 0.1.0", shell_output("#{bin}/chronochrome --version")
+    # `version` is derived from the tag in `url`, so this tracks releases
+    # automatically — the tap bump only ever rewrites url + sha256.
+    assert_match "chronochrome #{version}", shell_output("#{bin}/chronochrome --version")
 
     # `validate` exercises config loading + the scheduler end-to-end.
     (testpath/"config.toml").write <<~TOML

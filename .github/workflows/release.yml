@@ -1,11 +1,12 @@
 name: release
 
-# Cut a release by pushing a version tag:
-#   git tag v0.1.0 && git push origin v0.1.0
+# Cut a release by pushing a version tag (scripts/release.sh does this for you):
+#   scripts/release.sh patch
 #
-# This builds the sdist + wheel, attaches them to a GitHub Release, and prints
-# the SHA256 of the tag's source tarball — the value the Homebrew formula's
-# `sha256` field needs.
+# On a v* tag this:
+#   1. builds the sdist + wheel, tests them, and publishes a GitHub Release
+#   2. recomputes the source-tarball SHA256 and pushes the updated formula to
+#      the Homebrew tap — no manual formula editing.
 
 on:
   push:
@@ -36,25 +37,67 @@ jobs:
           python -m pip install pytest
           python -m pytest -q
 
-      - name: Compute Homebrew source-tarball SHA256
-        run: |
-          TAG="${GITHUB_REF_NAME}"
-          URL="https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/${TAG}.tar.gz"
-          echo "Fetching $URL"
-          SHA="$(curl -sL "$URL" | shasum -a 256 | awk '{print $1}')"
-          echo "Homebrew url:    $URL"
-          echo "Homebrew sha256: $SHA"
-          {
-            echo "### Homebrew formula values"
-            echo ""
-            echo '```ruby'
-            echo "url \"$URL\""
-            echo "sha256 \"$SHA\""
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
           generate_release_notes: true
+
+  bump-homebrew-tap:
+    # Runs after the release exists so the tag tarball is downloadable.
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    env:
+      # A PAT with contents:write on ghostlyrvn/homebrew-chronochrome.
+      # If it isn't set (e.g. before the tap exists), the whole job no-ops and
+      # the GitHub Release above is unaffected.
+      TAP_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+    steps:
+      - name: Check whether tap bumping is configured
+        id: guard
+        run: |
+          if [ -z "${TAP_TOKEN}" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "TAP_GITHUB_TOKEN not set — skipping Homebrew tap bump."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out the tap
+        if: steps.guard.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: ghostlyrvn/homebrew-chronochrome
+          token: ${{ env.TAP_TOKEN }}
+          path: tap
+
+      - name: Update the formula's url + sha256
+        if: steps.guard.outputs.enabled == 'true'
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          URL="https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/${TAG}.tar.gz"
+          SHA="$(curl -sL "$URL" | shasum -a 256 | awk '{print $1}')"
+          echo "url:    $URL"
+          echo "sha256: $SHA"
+          FORMULA="tap/Formula/chronochrome.rb"
+          test -f "$FORMULA" || { echo "::error::$FORMULA not found in tap"; exit 1; }
+          # Rewrite only the url and sha256 lines. Homebrew derives `version`
+          # from the tag in the url, so nothing else needs touching.
+          sed -i -E "s|^  url \".*\"|  url \"${URL}\"|" "$FORMULA"
+          sed -i -E "s|^  sha256 \".*\"|  sha256 \"${SHA}\"|" "$FORMULA"
+
+      - name: Commit and push the formula
+        if: steps.guard.outputs.enabled == 'true'
+        run: |
+          set -euo pipefail
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "Formula already up to date — nothing to commit."
+            exit 0
+          fi
+          git add Formula/chronochrome.rb
+          git commit -m "chronochrome ${GITHUB_REF_NAME#v}"
+          git push

@@ -4,7 +4,9 @@ build-backend = "hatchling.build"
 
 [project]
 name = "chronochrome"
-version = "0.1.0"
+# Single-sourced from src/chronochrome/__init__.py — see [tool.hatch.version].
+# `scripts/release.sh` is the only thing that edits it.
+dynamic = ["version"]
 description = "Automatically swap editor color themes based on time-of-day blocks"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -32,6 +34,11 @@ chronochrome = "chronochrome.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/ghostlyrvn/chronochrome"
+
+[tool.hatch.version]
+# The one place the version number lives. `chronochrome --version` reads the
+# same attribute at runtime, so code and package version can never drift.
+path = "src/chronochrome/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/chronochrome"]
