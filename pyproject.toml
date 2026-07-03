@@ -1,0 +1,53 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "chronochrome"
+# Single-sourced from src/chronochrome/__init__.py — see [tool.hatch.version].
+# `scripts/release.sh` is the only thing that edits it.
+dynamic = ["version"]
+description = "Automatically swap editor color themes based on time-of-day blocks"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "Ricardo" }]
+keywords = ["zed", "theme", "scheduler", "editor", "color-scheme"]
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Utilities",
+]
+# v1 has zero runtime dependencies — stdlib only (tomllib for config,
+# regex-based JSONC patching for Zed). tomlkit is deliberately NOT here;
+# it is only pulled in if/when a TOML-based target-editor adapter is built.
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[project.scripts]
+chronochrome = "chronochrome.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/ghostlyrvn/chronochrome"
+
+[tool.hatch.version]
+# The one place the version number lives. `chronochrome --version` reads the
+# same attribute at runtime, so code and package version can never drift.
+path = "src/chronochrome/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/chronochrome"]
+
+# Ship the example config inside the package so `chronochrome install` can find
+# it in an installed wheel (the CLI falls back to the repo-root copy in dev).
+[tool.hatch.build.targets.wheel.force-include]
+"config.example.toml" = "chronochrome/config.example.toml"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

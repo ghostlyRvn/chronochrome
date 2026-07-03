@@ -1,0 +1,16 @@
+{
+  // Zed settings — Chronochrome must preserve every comment in this file.
+  "theme": "One Dark",
+  "buffer_font_size": 15, // trailing comment on a primitive
+  "ui_font_size": 16,
+  /* block comment describing the editor section */
+  "vim_mode": false,
+  "languages": {
+    "Python": {
+      "tab_size": 4
+    }
+  },
+  "telemetry": {
+    "metrics": false
+  }
+}

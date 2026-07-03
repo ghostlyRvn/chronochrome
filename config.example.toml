@@ -1,0 +1,38 @@
+# Chronochrome configuration
+#
+# Lives at ~/.config/chronochrome/config.toml
+#
+# Theme names are mapped explicitly PER EDITOR. There is no shared theme
+# namespace across editors — each block declares a theme per adapter it wants
+# to drive. An editor with no entry for a block is left alone during that block.
+
+# How often the OS scheduler invokes `chronochrome apply`, in minutes.
+check_interval_minutes = 5
+
+[[blocks]]
+name = "morning"
+start = "06:00"
+end = "11:00"
+[blocks.themes]
+zed = "One Light"
+
+[[blocks]]
+name = "afternoon"
+start = "11:00"
+end = "17:00"
+[blocks.themes]
+zed = "Solarized Light"
+
+[[blocks]]
+name = "evening"
+start = "17:00"
+end = "21:00"
+[blocks.themes]
+zed = "One Dark"
+
+[[blocks]]
+name = "night"
+start = "21:00"
+end = "06:00"          # wraps past midnight — see scheduler.py
+[blocks.themes]
+zed = "Ayu Dark"
