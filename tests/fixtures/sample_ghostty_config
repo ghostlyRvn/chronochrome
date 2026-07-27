@@ -1,0 +1,14 @@
+# Ghostty configuration
+# key = value, one directive per line, '#' starts a comment line.
+
+theme = Rose Pine
+
+font-family = JetBrains Mono
+font-size = 13
+
+# window appearance
+background-opacity = 0.95
+window-padding-x = 8
+
+# theme = Catppuccin Mocha  (commented-out alternative, must be ignored)
+keybind = ctrl+shift+r=reload_config

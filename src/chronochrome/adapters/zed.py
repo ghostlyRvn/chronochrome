@@ -88,6 +88,11 @@ class ZedAdapter:
         if new_text != text:
             self._write_atomic(new_text)
 
+    def reload(self) -> str | None:
+        """No-op: Zed watches ``settings.json`` and reloads it live on change,
+        so writing the file is all that's needed."""
+        return None
+
     def _write_atomic(self, text: str) -> None:
         """Temp file + atomic rename. Zed reloads this file live on change, so a
         half-written file must never be visible."""

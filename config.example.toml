@@ -5,6 +5,11 @@
 # Theme names are mapped explicitly PER EDITOR. There is no shared theme
 # namespace across editors — each block declares a theme per adapter it wants
 # to drive. An editor with no entry for a block is left alone during that block.
+#
+# Adapter theme names must match what that app expects, exactly:
+#   zed      — a theme from Zed's theme picker, e.g. "One Dark"
+#   ghostty  — a bundled theme name from `ghostty +list-themes` (written bare,
+#              may contain spaces), e.g. "Solarized Light"
 
 # How often the OS scheduler invokes `chronochrome apply`, in minutes.
 check_interval_minutes = 5
@@ -15,6 +20,7 @@ start = "06:00"
 end = "11:00"
 [blocks.themes]
 zed = "One Light"
+ghostty = "Solarized Light"
 
 [[blocks]]
 name = "afternoon"
@@ -22,6 +28,7 @@ start = "11:00"
 end = "17:00"
 [blocks.themes]
 zed = "Solarized Light"
+ghostty = "Solarized Light"
 
 [[blocks]]
 name = "evening"
@@ -29,6 +36,7 @@ start = "17:00"
 end = "21:00"
 [blocks.themes]
 zed = "One Dark"
+ghostty = "Dracula"
 
 [[blocks]]
 name = "night"
@@ -36,3 +44,4 @@ start = "21:00"
 end = "06:00"          # wraps past midnight — see scheduler.py
 [blocks.themes]
 zed = "Ayu Dark"
+ghostty = "Solarized Dark"

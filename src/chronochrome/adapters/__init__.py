@@ -12,11 +12,13 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from .base import AdapterError, EditorAdapter
+from .ghostty import GhosttyAdapter
 from .zed import ZedAdapter
 
 # Factories, so callers get fresh instances (and tests can register their own).
 REGISTRY: list[Callable[[], EditorAdapter]] = [
     ZedAdapter,
+    GhosttyAdapter,
 ]
 
 
@@ -33,6 +35,7 @@ def detected_adapters() -> list[EditorAdapter]:
 __all__ = [
     "AdapterError",
     "EditorAdapter",
+    "GhosttyAdapter",
     "ZedAdapter",
     "REGISTRY",
     "all_adapters",

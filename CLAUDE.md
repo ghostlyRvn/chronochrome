@@ -205,17 +205,22 @@ chronochrome/
 │       ├── scheduler.py        # "which block is active right now", handles midnight wraparound
 │       ├── state.py            # tracks last-applied theme PER ADAPTER to avoid redundant writes
 │       ├── adapters/
-│       │   ├── base.py         # EditorAdapter protocol
+│       │   ├── base.py         # EditorAdapter protocol (incl. optional reload hook)
 │       │   ├── _jsonc_patch.py # shared regex-based patch helper for JSONC-format editors
-│       │   └── zed.py          # v1's only concrete adapter
+│       │   ├── _kv_patch.py    # `key = value` line patcher for Ghostty's config format
+│       │   ├── zed.py          # v1's first concrete adapter
+│       │   └── ghostty.py      # terminal adapter — key=value patch + SIGUSR2 reload
 │       └── service/
 │           ├── launchd.py      # generate/install/uninstall the .plist (macOS)
 │           └── systemd.py      # generate/install/uninstall the .service + .timer (Linux)
 ├── tests/
 │   ├── test_scheduler.py
 │   ├── test_adapters_zed.py
+│   ├── test_adapters_ghostty.py
+│   ├── test_kv_patch.py
 │   └── fixtures/
-│       └── sample_zed_settings.json
+│       ├── sample_zed_settings.json
+│       └── sample_ghostty_config
 ```
 
 ---
@@ -368,12 +373,15 @@ file path differ.
       formula, tag-triggered release, and automatic tap bump (see `RELEASING.md`
       and `packaging/homebrew/`). Publishing the tap repo is a one-time manual step.
 - [x] `--dry-run` flag for `apply` — implemented.
-- [x] Second adapter chosen: **Ghostty** (terminal). Build once Zed is solid —
-      full plan in "Terminal emulator adapters" above. VSCode is the likely
-      third (JSONC, reuses `_jsonc_patch.py`).
-- [ ] Revisit `EditorAdapter.set_theme`'s contract — Ghostty forces this now: it
-      needs an optional **post-write reload hook** (`SIGUSR2`), since it doesn't
-      live-reload. A non-declarative editor like Neovim would push on it further.
+- [x] Second adapter **built: Ghostty** (terminal) — `adapters/ghostty.py` with
+      the `key = value` patcher (`adapters/_kv_patch.py`), macOS dual-path
+      resolution, split-form (`theme = light:…,dark:…`) refusal, and a
+      `SIGUSR2` reload hook. VSCode is the likely third (JSONC, reuses
+      `_jsonc_patch.py`).
+- [x] Revisited `EditorAdapter`'s contract — added an optional **post-write
+      `reload()` hook**. The apply loop calls it after a successful write;
+      Ghostty signals `SIGUSR2`, auto-reloading targets (Zed) return `None`. A
+      non-declarative editor like Neovim would still push on `set_theme` further.
 
 ---
 

@@ -42,3 +42,20 @@ class EditorAdapter(Protocol):
         in the file. Raise :class:`AdapterError` rather than clobbering a config
         the tool doesn't own (unless ``force``)."""
         ...
+
+    def reload(self) -> str | None:
+        """Best-effort: nudge a *running* instance of the editor to pick up the
+        theme just written, and return a short human-readable note if it did
+        something worth reporting (else ``None``).
+
+        Most targets watch their config file and reload live (Zed, WezTerm, …),
+        so for them this is a no-op that returns ``None`` — writing the file is
+        the whole job. Ghostty does *not* live-reload, so its adapter overrides
+        this to signal the process (``SIGUSR2``).
+
+        The apply loop calls this only after a successful ``set_theme`` write.
+        Implementations must be best-effort: never raise for an expected
+        condition (editor not running, no permission to signal) — return
+        ``None`` instead.
+        """
+        ...

@@ -8,9 +8,9 @@ time-of-day blocks you configure. It is a small, stateless CLI run periodically
 by your OS scheduler, **not** a background daemon and **not** an editor
 extension.
 
-v1 supports **Zed**. The architecture is adapter-based so other config-file
-editors (VSCode, Sublime, Helix, …) can be added later without touching the
-scheduling core.
+Chronochrome supports **Zed** and **Ghostty**. The architecture is
+adapter-based so other config-file editors and terminals (VSCode, Sublime,
+Helix, …) can be added later without touching the scheduling core.
 
 ## How it works
 
@@ -27,7 +27,10 @@ minutes — no long-running process to crash or miss a transition after sleep.
 
 Zed's `settings.json` is JSONC (comments + trailing commas). Chronochrome
 patches it as **text**, replacing only the `"theme"` value and leaving every
-comment, blank line, and key order byte-for-byte intact.
+comment, blank line, and key order byte-for-byte intact. Ghostty's `config` is
+a flat `key = value` file, patched the same way — only the `theme` line
+changes. Ghostty doesn't watch its config, so after writing, Chronochrome
+signals the running terminal (`SIGUSR2`) to reload immediately.
 
 ## Install
 
@@ -68,6 +71,7 @@ start = "06:00"
 end = "11:00"
 [blocks.themes]
 zed = "One Light"
+ghostty = "Solarized Light"   # a name from `ghostty +list-themes`
 
 [[blocks]]
 name = "night"
@@ -75,6 +79,7 @@ start = "21:00"
 end = "06:00"      # wraps past midnight
 [blocks.themes]
 zed = "Ayu Dark"
+ghostty = "Solarized Dark"
 ```
 
 Blocks may wrap past midnight (`end < start`). Gaps are allowed — Chronochrome
@@ -93,9 +98,10 @@ just leaves the theme untouched during an uncovered window. See
 | `chronochrome validate` | Lint the config (overlaps, gaps, bad times, unmapped editors) |
 | `chronochrome adapters` | List adapters and whether each is detected |
 
-`apply` refuses to overwrite Zed's object-form `"theme"` (system light/dark
-switching) unless you pass `--force`, since that conflicts with per-block
-control.
+`apply` refuses to overwrite a theme set in a form that means the user opted
+into their own light/dark switching — Zed's object-form `"theme"`, or Ghostty's
+`theme = light:…,dark:…` split form — unless you pass `--force`, since that
+conflicts with per-block control.
 
 ## Development
 
@@ -104,8 +110,8 @@ uv sync            # or: pip install -e ".[dev]"
 pytest
 ```
 
-The Zed adapter test asserts that patching a commented fixture preserves every
-comment and only touches the theme line.
+The Zed and Ghostty adapter tests assert that patching a commented fixture
+preserves every comment and only touches the theme line.
 
 ## Releasing
 
@@ -116,18 +122,15 @@ the GitHub Release and updates the Homebrew tap automatically. See
 
 ## Coming soon
 
-Chronochrome's adapter interface is built for more than Zed. Planned next:
+Chronochrome's adapter interface is built for more than Zed and Ghostty.
+Planned next:
 
-- **Ghostty** (terminal emulator) — a single `theme` key with 300+ built-in
-  themes. Ghostty doesn't live-reload its config, so this adapter will also
-  nudge the running terminal (via `SIGUSR2`) to pick the new theme up
-  immediately.
 - **VSCode** (editor) — JSONC settings keyed on `"workbench.colorTheme"`, so it
   reuses the same comment-preserving patch strategy as the Zed adapter.
 
-Neither ships yet — the interface is proving out on Zed first. Want a different
-editor or terminal? The adapter contract is small (detect, read theme, write
-theme); see [`CLAUDE.md`](CLAUDE.md) for how to add one.
+Want a different editor or terminal? The adapter contract is small (detect,
+read theme, write theme, optional reload); see [`CLAUDE.md`](CLAUDE.md) for how
+to add one.
 
 ## Non-goals
 

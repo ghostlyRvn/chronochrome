@@ -99,6 +99,16 @@ def cmd_apply(args: argparse.Namespace) -> int:
         changed_any = True
         print(f"{adapter.name}: theme set to {theme!r} (block {block.name!r})")
 
+        # Best-effort reload for editors that don't watch their config (Ghostty).
+        # Never let a reload failure fail the apply — the file is already written.
+        try:
+            note = adapter.reload()
+        except Exception as exc:  # pragma: no cover - defensive; reload is best-effort
+            _eprint(f"chronochrome: {adapter.name}: reload hook failed: {exc}")
+            note = None
+        if note:
+            print(f"{adapter.name}: {note}")
+
     if changed_any and not dry_run:
         state.save()
 
