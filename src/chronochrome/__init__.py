@@ -6,4 +6,4 @@ active time block and patches each detected editor's config file only if its
 theme needs to change.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
