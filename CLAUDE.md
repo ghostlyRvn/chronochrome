@@ -107,6 +107,77 @@ covers it without revisiting `set_theme`'s contract first.
 
 ---
 
+## Terminal emulator adapters (planned — Ghostty is next)
+
+v1 is Zed only. The **second adapter is a terminal emulator: Ghostty** — chosen
+because Ricardo actually runs it (alongside Zed), not because it's the easiest
+fit. Terminal configs were surveyed against the same three requirements the Zed
+adapter leans on: **(a)** a plain-text config file, **(b)** a single theme
+selector — a named theme or one `include`/`import` line, not ~20 expanded color
+keys — and **(c)** the app live-reloads when the file changes on disk.
+
+_Verified against official docs/source, 2026-07. Versions move — re-check the
+reload defaults before building, since that column is what changes most._
+
+| Terminal | Selector | Config format | Auto-reload on file change | Platforms | Fit |
+|---|---|---|---|---|---|
+| WezTerm | `color_scheme = 'X'` (named) | Lua | yes (default) | mac/Linux/Win | clean |
+| Rio | `theme = "X"` (named) | TOML | yes (default) | mac/Linux/Win | clean |
+| Alacritty | `import = ["…/X.toml"]` (file) | TOML | yes (`live_config_reload`) | mac/Linux/Win | clean |
+| Kitty | `include current-theme.conf` (file) | custom `key value` | yes since 0.47 (`auto_reload_config`) | mac/Linux | clean |
+| **Ghostty** | `theme = X` (named, 300+) | custom `key = value` | **no** — keybind / `SIGUSR2` | mac/Linux | needs reload hook |
+| foot | `include=…` (file) | INI | no (SIGUSR1/2 only toggle two themes) | Linux/Wayland | needs reload hook |
+| iTerm2 / Apple Terminal | color-preset keys | binary plist | no (app owns prefs) | macOS | doesn't fit |
+| GNOME Terminal | palette keys | dconf DB (binary) | n/a (not a file) | Linux | doesn't fit |
+| Hyper | 16 color keys + npm plugins | JavaScript | yes | mac/Linux/Win | no single selector |
+| Tabby | inline color object | YAML | undocumented | mac/Linux/Win | no bare-name selector |
+
+(Windows Terminal is a perfect fit — `"colorScheme"` in JSONC, live-reload on
+save — but is Windows-only, so out of scope until Windows is.)
+
+### Ghostty adapter specifics (verified)
+
+- **Config path:** Linux `~/.config/ghostty/config`
+  (`$XDG_CONFIG_HOME/ghostty/config`). macOS
+  `~/Library/Application Support/com.mitchellh.ghostty/config` — note macOS
+  **also** reads `~/.config/ghostty/config`, and the Application Support file
+  wins on conflict. The adapter must patch the file Ghostty actually loads.
+- **Format:** custom `key = value`, one directive per line, `#` comments. **Not**
+  JSONC/TOML — it cannot reuse `_jsonc_patch.py`.
+- **Theme key:** a single `theme = <name>`; ~300+ bundled themes
+  (`ghostty +list-themes`). The name is written **unquoted** and may contain
+  spaces: `theme = Rose Pine`. A split form `theme = light:Name,dark:Name` exists
+  for desktop light/dark — this is Ghostty's analogue of Zed's object form, so
+  treat it the same way: **warn and refuse to overwrite unless `--force`**, since
+  it conflicts with per-block control.
+- **Reload:** **not automatic** — Ghostty does not watch the file. A reload is
+  triggered by the `reload_config` keybind (`ctrl+shift+,` Linux /
+  `cmd+shift+,` macOS) or by sending **`SIGUSR2`** to the process.
+- **Platforms:** macOS + Linux only (no Windows).
+
+### What Ghostty needs that Zed didn't
+
+1. **A `key = value` line patcher** (a new `adapters/_kv_patch.py`, or inline in
+   the adapter): find the top-level `theme` line, replace only its value, keep
+   comments/order, insert if absent, temp-file + atomic rename. Values are bare,
+   not JSON-quoted.
+2. **A post-write reload hook.** Because Ghostty doesn't live-reload, writing the
+   file isn't enough for a *running* instance — the adapter must nudge it with
+   `SIGUSR2` (best-effort: find running `ghostty` PIDs; if none, the theme loads
+   on next launch). This is the **first adapter that acts beyond writing a file**,
+   so the `EditorAdapter` contract grows an optional reload step (either
+   `set_theme` performs it, or the apply loop calls a separate `reload()` after a
+   successful write). Auto-reloading targets (Zed, WezTerm, …) leave it a no-op.
+3. **macOS dual-path resolution.** On macOS, prefer the Application Support file
+   when it exists (it's the one Ghostty loads); fall back to
+   `~/.config/ghostty/config`. Patching the non-authoritative file silently does
+   nothing, so `detect()` should report which file wins.
+
+None of this touches `scheduler.py`, `config.py`, or `state.py` — it's contained
+in the adapter plus the small reload-hook addition to the interface.
+
+---
+
 ## Tech stack
 
 - **Language:** Python 3.11+ (stdlib `tomllib` for reading Chronochrome's own
@@ -293,11 +364,16 @@ file path differ.
 
 - [ ] Confirm exact `.plist` / systemd unit templates against the current OS versions Ricardo runs
 - [ ] Decide error/notification UX for an invalid config (stderr log vs. OS notification vs. silent no-op)
-- [ ] Distribution: `pipx` from GitHub for now — Homebrew tap later?
-- [ ] Consider a `--dry-run` flag for `apply`
-- [ ] Decide which editor becomes the second adapter once Zed is solid
-- [ ] Revisit `EditorAdapter.set_theme`'s contract if/when a non-declarative
-      editor (e.g. Neovim) is ever considered
+- [x] Distribution: `pipx`/`uv` from GitHub now; Homebrew tooling in place —
+      formula, tag-triggered release, and automatic tap bump (see `RELEASING.md`
+      and `packaging/homebrew/`). Publishing the tap repo is a one-time manual step.
+- [x] `--dry-run` flag for `apply` — implemented.
+- [x] Second adapter chosen: **Ghostty** (terminal). Build once Zed is solid —
+      full plan in "Terminal emulator adapters" above. VSCode is the likely
+      third (JSONC, reuses `_jsonc_patch.py`).
+- [ ] Revisit `EditorAdapter.set_theme`'s contract — Ghostty forces this now: it
+      needs an optional **post-write reload hook** (`SIGUSR2`), since it doesn't
+      live-reload. A non-declarative editor like Neovim would push on it further.
 
 ---
 

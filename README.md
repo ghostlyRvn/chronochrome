@@ -114,6 +114,21 @@ Cutting a release is a single command — `scripts/release.sh patch` (or
 the GitHub Release and updates the Homebrew tap automatically. See
 [`RELEASING.md`](RELEASING.md).
 
+## Coming soon
+
+Chronochrome's adapter interface is built for more than Zed. Planned next:
+
+- **Ghostty** (terminal emulator) — a single `theme` key with 300+ built-in
+  themes. Ghostty doesn't live-reload its config, so this adapter will also
+  nudge the running terminal (via `SIGUSR2`) to pick the new theme up
+  immediately.
+- **VSCode** (editor) — JSONC settings keyed on `"workbench.colorTheme"`, so it
+  reuses the same comment-preserving patch strategy as the Zed adapter.
+
+Neither ships yet — the interface is proving out on Zed first. Want a different
+editor or terminal? The adapter contract is small (detect, read theme, write
+theme); see [`CLAUDE.md`](CLAUDE.md) for how to add one.
+
 ## Non-goals
 
 - Not a WASM/native editor extension; not in any editor's extension registry
