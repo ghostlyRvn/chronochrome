@@ -31,6 +31,23 @@ fi
 
 INIT="src/chronochrome/__init__.py"
 
+# If anything fails *before* we've committed, roll back the version bump so the
+# working tree is left exactly as we found it. Once the release commit exists,
+# the commit — not the working-tree edit — is the artifact, so we stop
+# reverting: a failed tag/push just needs a re-run, not the version undone.
+# VERSION_WRITTEN guards against clobbering a bump this script didn't make
+# (e.g. a pre-existing dirty tree caught by the check above).
+VERSION_WRITTEN=0
+COMMITTED=0
+rollback_on_failure() {
+  local status=$?
+  if [[ $status -ne 0 && $VERSION_WRITTEN -eq 1 && $COMMITTED -eq 0 ]]; then
+    echo "==> Release failed (exit $status); reverting version bump in ${INIT}" >&2
+    git checkout -- "$INIT"
+  fi
+}
+trap rollback_on_failure EXIT
+
 # Compute + write the new version (Python is guaranteed present in this project).
 NEW_VERSION="$(python3 - "$BUMP" "$INIT" <<'PY'
 import re, sys
@@ -61,16 +78,20 @@ with open(path, "w") as fh:
 print(new)
 PY
 )"
+VERSION_WRITTEN=1
 
 TAG="v${NEW_VERSION}"
 echo "==> Releasing ${TAG}"
 
 echo "==> Running tests"
-python3 -m pytest -q
+# Run via `uv run` so the dev deps (pytest) resolve from the project's
+# environment regardless of whether a venv is activated in the caller's shell.
+uv run pytest -q
 
 echo "==> Committing and tagging"
 git add "$INIT"
 git commit -m "Release ${TAG}"
+COMMITTED=1
 git tag "$TAG"
 
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
